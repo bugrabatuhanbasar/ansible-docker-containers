@@ -12,9 +12,6 @@
 # - Amacın Ansible öğrenmek, container orchestration değil
 # =============================================================================
 
-# Docker Compose dosya formatı versiyonu
-version: '3.8'
-
 # =============================================================================
 # SERVICES (CONTAINER TANIMLARI)
 # =============================================================================
@@ -26,6 +23,8 @@ services:
   # Bu container'dan diğer node'lara SSH ile bağlanıp Ansible komutları çalıştıracaksın
   control-node:
     # Dockerfile'dan image oluştur (./control-node dizinindeki Dockerfile)
+    # platform: ARM Mac'te x86 emülasyonu ile CentOS 7 çalıştır
+    platform: linux/amd64
     build:
       context: ./control-node
       dockerfile: Dockerfile
@@ -62,6 +61,7 @@ services:
   # MANAGED NODE 1 - Ansible ile yöneteceğin 1. sunucu
   # ---------------------------------------------------------------------------
   managed-node1:
+    platform: linux/amd64
     build:
       context: ./managed-node
       dockerfile: Dockerfile
@@ -81,6 +81,7 @@ services:
   # MANAGED NODE 2 - Ansible ile yöneteceğin 2. sunucu
   # ---------------------------------------------------------------------------
   managed-node2:
+    platform: linux/amd64
     build:
       context: ./managed-node
       dockerfile: Dockerfile
