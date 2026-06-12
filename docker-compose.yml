@@ -1,0 +1,108 @@
+# =============================================================================
+# ANSIBLE MULTI-NODE LAB - DOCKER COMPOSE
+# =============================================================================
+# Bu dosya 3 container oluşturur:
+#   - control-node: Ansible'ın kurulu olduğu ana makine (senin komutları çalıştıracağın yer)
+#   - managed-node1: Ansible ile yöneteceğin 1. sunucu
+#   - managed-node2: Ansible ile yöneteceğin 2. sunucu
+#
+# NEDEN DOCKER, KUBERNETES DEĞİL?
+# - Docker Compose: Tek komutla (docker-compose up) tüm lab ayağa kalkar
+# - Kubernetes: Cluster kurulumu, pod tanımları vs. gereksiz karmaşıklık
+# - Amacın Ansible öğrenmek, container orchestration değil
+# =============================================================================
+
+# Docker Compose dosya formatı versiyonu
+version: '3.8'
+
+# =============================================================================
+# SERVICES (CONTAINER TANIMLARI)
+# =============================================================================
+services:
+
+  # ---------------------------------------------------------------------------
+  # CONTROL NODE - Ansible'ın kurulu olduğu ana makine
+  # ---------------------------------------------------------------------------
+  # Bu container'dan diğer node'lara SSH ile bağlanıp Ansible komutları çalıştıracaksın
+  control-node:
+    # Dockerfile'dan image oluştur (./control-node dizinindeki Dockerfile)
+    build:
+      context: ./control-node
+      dockerfile: Dockerfile
+
+    # Container'a isim ver (docker ps'de görünecek)
+    container_name: control-node
+
+    # Hostname ayarı (container içinde 'hostname' komutu bunu döndürür)
+    hostname: control-node
+
+    # Container'ı arka planda çalışır tut (stdin_open + tty = interaktif shell)
+    # NOT: VM'lerde "onboot=yes" ile yapılan şeyi Docker'da böyle yaparız
+    stdin_open: true  # -i flag'i (interactive)
+    tty: true         # -t flag'i (pseudo-TTY)
+
+    # Aynı network'e bağla (tüm node'lar birbirini görebilsin)
+    networks:
+      - ansible-lab-network
+
+    # Mac'inden container'a SSH ile bağlanabilmen için port mapping
+    # Format: "HOST_PORT:CONTAINER_PORT"
+    # Mac'ten: ssh root@localhost -p 2222
+    ports:
+      - "2222:22"
+
+    # Container kapansa bile otomatik yeniden başlat
+    restart: unless-stopped
+
+    # Privileged mode: systemctl benzeri komutlar için gerekli
+    # NOT: Normalde güvenlik riski ama lab ortamı için OK
+    privileged: true
+
+  # ---------------------------------------------------------------------------
+  # MANAGED NODE 1 - Ansible ile yöneteceğin 1. sunucu
+  # ---------------------------------------------------------------------------
+  managed-node1:
+    build:
+      context: ./managed-node
+      dockerfile: Dockerfile
+    container_name: managed-node1
+    hostname: managed-node1
+    stdin_open: true
+    tty: true
+    networks:
+      - ansible-lab-network
+    # Mac'ten SSH: ssh root@localhost -p 2223
+    ports:
+      - "2223:22"
+    restart: unless-stopped
+    privileged: true
+
+  # ---------------------------------------------------------------------------
+  # MANAGED NODE 2 - Ansible ile yöneteceğin 2. sunucu
+  # ---------------------------------------------------------------------------
+  managed-node2:
+    build:
+      context: ./managed-node
+      dockerfile: Dockerfile
+    container_name: managed-node2
+    hostname: managed-node2
+    stdin_open: true
+    tty: true
+    networks:
+      - ansible-lab-network
+    # Mac'ten SSH: ssh root@localhost -p 2224
+    ports:
+      - "2224:22"
+    restart: unless-stopped
+    privileged: true
+
+# =============================================================================
+# NETWORKS (AĞ TANIMLARI)
+# =============================================================================
+# Tüm container'lar aynı network'te olacak, birbirlerini hostname ile bulabilecek
+# NOT: Docker'da "bridge" network varsayılan, VM'deki bridge gibi çalışır
+networks:
+  ansible-lab-network:
+    driver: bridge
+    # Bu network'teki container'lar birbirini isimle çağırabilir
+    # Örnek: control-node'dan "ping managed-node1" çalışır
